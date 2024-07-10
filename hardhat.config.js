@@ -2,7 +2,7 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config()
 
 module.exports = {
-  defaultNetwork: hardhat,
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       chainId: 31337
@@ -12,6 +12,10 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY],
       chainId: 11155111,
       blockConfirmations: 6
+    },
+    tenderly: {
+      url: process.env.TENDERLY_VM,
+      chainId: 7295
     }
   },
   solidity: {
