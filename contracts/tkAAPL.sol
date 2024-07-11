@@ -10,7 +10,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
 
     using FunctionsRequest for FunctionsRequest.Request;
     
-    enum MintOrRedeem {
+    enum MintOrSell {
         mint,
         redeem
     }
@@ -19,7 +19,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
     struct AAPLRequest {
         uint256 requestedTokenAmount;
         address requester;
-        MintOrRedeem mintOrRedeem;
+        MintOrSell mintOrSell;
     }
 
     address private constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
@@ -30,12 +30,12 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
     uint256 private portfolioBalance;
 
     // Mapping storing each request details for each specific request id
-    mapping (bytes32 requestId => AAPLRequest request) private requests;
+    mapping(bytes32 requestId => AAPLRequest request) private requests;
 
-    constructor(
-        string memory _requestSourceCode, 
-        uint64 _subscriptionID
-    ) ConfirmedOwner(msg.sender) FunctionsClient(FUNCTIONS_ROUTER) {
+    constructor(string memory _requestSourceCode, uint64 _subscriptionID) 
+        ConfirmedOwner(msg.sender) 
+        FunctionsClient(FUNCTIONS_ROUTER) 
+    {
         requestSourceCode = _requestSourceCode;
         subscriptionId = _subscriptionID;
     }
@@ -44,13 +44,14 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
      * @notice User send a request for minting an tkAAPL token.
      * @dev Send an HTTP request to Chainlink. Function will send 2 txs.
      * 1st tx will send a request to Chainlink node, to check the stocks balance of the user.
-     * 2nd tx will do a callback to the APPL contract and do a token minting if user balance is enough for this.
+     * 2nd tx will do a callback to the APPL contract and do a token minting throght the "_mintFulfillRequest"  
+     * if user balance is enough for this.
      * @param _amount - number of tokens for minting. 
      */
-    function sendMintRequest(uint256 _amount) external onlyOwner returns(bytes32 requestId) {
+    function sendMintRequest(uint256 _amount) external onlyOwner returns(bytes32) {
         FunctionsRequest.Request memory req; // this is our data object
         req.initializeRequestForInlineJavaScript(requestSourceCode);
-        bytes32 requestId = _sendRequest(
+        bytes32 requestId = _sendRequest( //sends a Chainlink Functions request to the stored router address
             req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
             subscriptionId,
             GAS_LIMIT,
@@ -59,8 +60,9 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
         requests[requestId] = AAPLRequest(
             _amount,
             msg.sender,
-            MintOrRedeem.mint
+            MintOrSell.mint
         );
+        return requestId;
     }
 
     /**
@@ -70,7 +72,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
      * 2. Buy USDC on the exchange.
      * 4. Send USDC to this smart contract. 
      */
-    function sendRedeemRequest()  external {
+    function sendSellRequest() external {
         
     }
 
@@ -93,31 +95,26 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
         }
     }
 
-    function _redeemFulfillRequest(bytes32 _requestId, bytes memory _response) internal {}
+    function _sellFulfillRequest(bytes32 _requestId, bytes memory _response) internal {}
 
     /**
-     * @dev After sending a mint/redeem request, Chainlink will always 
-     * respod with a callback to the fullFillRequest func.
+     * @dev After sending a mint/sell request, Chainlink will always 
+     * respond with a callback to the fullFillRequest func.
      * @param _requestId - request id 
      * @param _response - response 
      */
-    function fulfillRequest(
-        bytes32 _requestId, 
-        bytes memory _response, 
-        bytes memory /* err */) internal override 
+    function fulfillRequest(bytes32 _requestId, bytes memory _response, bytes memory /* err */) 
+        internal 
+        override 
     {
-        if (requests[_requestId].mintOrRedeem == MintOrRedeem.mint) {
+        if (requests[_requestId].mintOrSell == MintOrSell.mint) {
             _mintFulfillRequest(_requestId, _response);
         } else {
-            _redeemFulfillRequest(_requestId, _response);
+            _sellFulfillRequest(_requestId, _response);
         }
     }
 
-    function _getCollateralBalance(uint256 _requestedAmountOfTokensToMint) 
-    internal 
-    view 
-    returns(uint256) 
-    {
+    function _getCollateralBalance(uint256 _amountOfTokensToMint) internal view returns(uint256) {
         
     }
 }
