@@ -5,8 +5,10 @@ import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/Confir
 import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 import {tkAAPLErrors} from "../contracts/interfaces/CustomErrors.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
+
+contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     using FunctionsRequest for FunctionsRequest.Request;
     
@@ -24,6 +26,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
 
     address private constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
     bytes32 private constant DON_ID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
+    uint256 private constant DECIMALS = 1e18;
     uint64 private immutable subscriptionId;
     string private requestSourceCode;
     uint32 private constant GAS_LIMIT = 300000;
@@ -34,7 +37,8 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
 
     constructor(string memory _requestSourceCode, uint64 _subscriptionID) 
         ConfirmedOwner(msg.sender) 
-        FunctionsClient(FUNCTIONS_ROUTER) 
+        FunctionsClient(FUNCTIONS_ROUTER)
+        ERC20( ) 
     {
         requestSourceCode = _requestSourceCode;
         subscriptionId = _subscriptionID;
@@ -43,7 +47,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
     /**
      * @notice User send a request for minting an tkAAPL token.
      * @dev Send an HTTP request to Chainlink. Function will send 2 txs.
-     * 1st tx will send a request to Chainlink node, to check the stocks balance of the user.
+     * 1st tx will send a request to Chainlink node, to check the shares balance of the user.
      * 2nd tx will do a callback to the APPL contract and do a token minting throght the "_mintFulfillRequest"  
      * if user balance is enough for this.
      * @param _amount - number of tokens for minting. 
@@ -68,7 +72,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
     /**
      * @notice User send a request to sell AAPL token for USDC.
      * @dev Chainlink will send a call to the exchange app, and do the next operations:
-     * 1. Sell AAPL stock on the exchange.
+     * 1. Sell AAPL share on the exchange.
      * 2. Buy USDC on the exchange.
      * 4. Send USDC to this smart contract. 
      */
@@ -78,7 +82,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
 
     /**
      * @notice Return the amount of AAPL value(in USD) stored on the user exchange account.
-     * If user have enough AAPL stocks, then we'll mint a tkAAPL token.
+     * If user have enough AAPL shares, then we'll mint a tkAAPL token.
      * @dev After calling "sendMintRequest" function, the Chainlink node will return a response
      * with user exchange account balance, which will be used in this function.
      * If AAPL balance > txAAPL we want to mint --> then mint.
@@ -115,6 +119,18 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors {
     }
 
     function _getCollateralBalance(uint256 _amountOfTokensToMint) internal view returns(uint256) {
-        
+        uint256 calculatedNewTotalValue = getCalculatedNewTotalValue(_amountOfTokensToMint);
+    }
+
+    /**
+     * @dev Calculate the total value(in USD) of all tkAAPL tokens. Combining the totalSupply 
+     * together with the requested amount of tokens for mint and price of the AAPL share.
+     * At least this newly calculated total value should be on the user exchange account to
+     * mint the requested amount of tokens. 
+     * @param _addedTokens - tokens amount which is requested for mint. 
+     */
+    function getCalculatedNewTotalValue(uint256 _addedTokens) internal view returns (uint256) {
+        // (10tokens + 5 tokens to mint) * AAPL share price(200) = 3000$
+        return ((totalSupply() + _addedTokens) * getAaplSharePrice()) / DECIMALS;
     }
 }
