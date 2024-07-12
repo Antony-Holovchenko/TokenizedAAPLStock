@@ -5,8 +5,8 @@ import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/Confir
 import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 import {tkAAPLErrors} from "../contracts/interfaces/CustomErrors.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 
 contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
@@ -27,9 +27,14 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     address private constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
     bytes32 private constant DON_ID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
     uint256 private constant DECIMALS = 1e18;
+    // Tokens tkAAPL are not backed 1:1. Instead 1 tkAAPL token
+    // has at least 2 shares on the exchange account. So 2:1.
+    uint256 private constant COLLATERAL_RATIO = 200;
+    uint256 private constant COLLATERAL_DECIMALS = 100;
+    uint32 private constant GAS_LIMIT = 300000;
+    address private constant SEPOLIA_PRICE_FEED = 0xc59E3633BAAC79493d908e63626716e204A45EdF; // it is a LINK/USD frice feed for a test purpose
     uint64 private immutable subscriptionId;
     string private requestSourceCode;
-    uint32 private constant GAS_LIMIT = 300000;
     uint256 private portfolioBalance;
 
     // Mapping storing each request details for each specific request id
@@ -38,7 +43,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     constructor(string memory _requestSourceCode, uint64 _subscriptionID) 
         ConfirmedOwner(msg.sender) 
         FunctionsClient(FUNCTIONS_ROUTER)
-        ERC20( ) 
+        ERC20("tkAAPl", "tkAAPL") 
     {
         requestSourceCode = _requestSourceCode;
         subscriptionId = _subscriptionID;
@@ -81,6 +86,15 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     /**
+     * @dev Return an AAPL share price from Chainlink oracle.
+     */
+    function getAaplSharePrice() public view returns(uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(SEPOLIA_PRICE_FEED);
+        (,int256 price,,,) = priceFeed.latestRoundData();
+        return uint(price * 1e10);
+    }
+
+    /**
      * @notice Return the amount of AAPL value(in USD) stored on the user exchange account.
      * If user have enough AAPL shares, then we'll mint a tkAAPL token.
      * @dev After calling "sendMintRequest" function, the Chainlink node will return a response
@@ -118,8 +132,14 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         }
     }
 
+    /**
+     * @dev Checks that user have enough AAPL shares on his exchange account, 
+     * before start minting a requested amount of tkAAPL tokens.
+     * @param _amountOfTokensToMint - requested amount of tokens, user want to mint.
+     */
     function _getCollateralBalance(uint256 _amountOfTokensToMint) internal view returns(uint256) {
         uint256 calculatedNewTotalValue = getCalculatedNewTotalValue(_amountOfTokensToMint);
+        return(calculatedNewTotalValue * COLLATERAL_RATIO) / COLLATERAL_DECIMALS;
     }
 
     /**
