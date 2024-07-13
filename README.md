@@ -1,8 +1,12 @@
 # Tokenized AAPL stock
- 
+RWA segment continue growing and I am really interested in combination of the off chain assets
+together with on chain features. This repository shows an example of tokenization of real AAPL shares.
+These tokens represent an off chain asset(AAPL share) on chain, and at the same time these tokens are directly backed(collateralised) by the real AAPL shares.\
+With the help of Chainlink Functions I am able to securely send and retrieve information from off chain resourses regarding actual share price and the amount of shares of user account. 
+Hope you'll find this repository helpful.
+
 
 ## Technology Stack & Tools
-
 - Solidity (Writing Smart Contracts)
 - Javascript (Testing/Scripting)
 - [Hardhat](https://hardhat.org/) (Development Framework)
