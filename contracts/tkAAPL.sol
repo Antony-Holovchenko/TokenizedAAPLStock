@@ -58,6 +58,9 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @param _amount - number of tokens for minting. 
      */
     function sendMintRequest(uint256 _amount) external onlyOwner returns(bytes32) {
+        if(_amount <= 0) {
+            revert tkAAPL_Requested0TokenAmountToMint(_amount);
+        }
         FunctionsRequest.Request memory req; // this is our data object
         req.initializeRequestForInlineJavaScript(requestSourceCode);
         bytes32 requestId = _sendRequest( //sends a Chainlink Functions request to the stored router address
@@ -75,7 +78,8 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     /**
-     * @notice User send a request to sell AAPL token for USDC.
+     * @notice User send a request to sell tkAAPL token for it's USDC equivalent price 
+     * at the current point of time.
      * @dev Chainlink will send a call to the exchange app, and do the next operations:
      * 1. Sell AAPL share on the exchange.
      * 2. Buy USDC on the exchange.
@@ -104,16 +108,21 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @param _response - response object from Chainlink with data.
      */
     function _mintFulfillRequest(bytes32 _requestId, bytes memory _response) internal {
-        uint256 amountToMint = requests[_requestId].requestedTokenAmount;
+        AAPLRequest memory request = requests[_requestId];
         portfolioBalance = uint256(bytes32(_response));
 
-        // Total amount of tokens to mint should be < portfolioBalance
-        if(_getCollateralBalance(amountToMint) > portfolioBalance) {
-            revert tkAAPL_NotEnoughCollateral(amountToMint, portfolioBalance);
+        // Total amount of tokens to mint should be < portfolioBalance.
+        // checking if user have enough AAPL shares on the exchange account to mint new tokens.
+        if(_getCollateralBalance(request.requestedTokenAmount) > portfolioBalance) {
+            revert tkAAPL_NotEnoughCollateral(request.requestedTokenAmount, portfolioBalance);
+        } else {
+            _mint(request.requester, request.requestedTokenAmount);
         }
     }
 
-    function _sellFulfillRequest(bytes32 _requestId, bytes memory _response) internal {}
+    function _sellFulfillRequest(bytes32 _requestId, bytes memory _response) internal {
+
+    }
 
     /**
      * @dev After sending a mint/sell request, Chainlink will always 
@@ -134,7 +143,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     /**
      * @dev Checks that user have enough AAPL shares on his exchange account, 
-     * before start minting a requested amount of tkAAPL tokens.
+     * before starting minting a requested amount of tkAAPL tokens.
      * @param _amountOfTokensToMint - requested amount of tokens, user want to mint.
      */
     function _getCollateralBalance(uint256 _amountOfTokensToMint) internal view returns(uint256) {
