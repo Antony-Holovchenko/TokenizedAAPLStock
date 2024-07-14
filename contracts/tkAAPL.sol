@@ -14,7 +14,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     
     enum MintOrSell {
         mint,
-        redeem
+        sell
     }
 
     // Struct to store sendMintRequest details
@@ -24,28 +24,34 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         MintOrSell mintOrSell;
     }
 
-    address private constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
-    bytes32 private constant DON_ID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
-    uint256 private constant DECIMALS = 1e18;
+    address constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
+    bytes32 constant DON_ID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
+    uint256 constant DECIMALS = 1e18;
     // Tokens tkAAPL are not backed 1:1. Instead 1 tkAAPL token
     // has at least 2 shares on the exchange account. So 2:1.
-    uint256 private constant COLLATERAL_RATIO = 200;
-    uint256 private constant COLLATERAL_DECIMALS = 100;
-    uint32 private constant GAS_LIMIT = 300000;
-    address private constant SEPOLIA_PRICE_FEED = 0xc59E3633BAAC79493d908e63626716e204A45EdF; // it is a LINK/USD frice feed for a test purpose
-    uint64 private immutable subscriptionId;
+    uint256 constant COLLATERAL_RATIO = 200;
+    uint256 constant COLLATERAL_DECIMALS = 100;
+    uint32 constant GAS_LIMIT = 300000;
+    address constant SEPOLIA_AAPL_PRICE_FEED = 0xc59E3633BAAC79493d908e63626716e204A45EdF; // it is a LINK/USD frice feed for a test purpose
+    address constant SEPOLIA_USDC_PRICE_FEED = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
+    // Exchanges has a minimum withdrawal amount. I set it to 100
+    // because this amount will cover min. withdr. amount on each exchange. 
+    uint256 constant MINIMUM_WITHDROWAL_AMOUNT = 100e18;
+    uint64 immutable subscriptionId;
     string private requestSourceCode;
+    string private sellSourceCode;
     uint256 private portfolioBalance;
 
     // Mapping storing each request details for each specific request id
     mapping(bytes32 requestId => AAPLRequest request) private requests;
 
-    constructor(string memory _requestSourceCode, uint64 _subscriptionID) 
+    constructor(string memory _requestSourceCode, string memory _sellSourceCode, uint64 _subscriptionID) 
         ConfirmedOwner(msg.sender) 
         FunctionsClient(FUNCTIONS_ROUTER)
         ERC20("tkAAPl", "tkAAPL") 
     {
         requestSourceCode = _requestSourceCode;
+        sellSourceCode = _sellSourceCode;
         subscriptionId = _subscriptionID;
     }
 
@@ -55,6 +61,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * 1st tx will send a request to Chainlink node, to check the shares balance of the user.
      * 2nd tx will do a callback to the APPL contract and do a token minting throght the "_mintFulfillRequest"  
      * if user balance is enough for this.
+     * If '_amount' <= 0 --> revert with 'tkAAPL_Requested0TokenAmountToMint()'
      * @param _amount - number of tokens for minting. 
      */
     function sendMintRequest(uint256 _amount) external onlyOwner returns(bytes32) {
@@ -83,19 +90,66 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @dev Chainlink will send a call to the exchange app, and do the next operations:
      * 1. Sell AAPL share on the exchange.
      * 2. Buy USDC on the exchange.
-     * 4. Send USDC to this smart contract. 
+     * 4. Send USDC to this smart contract.
+     * If  '_tkAAPLAmountToSell' < MINIMUM_WITHDROWAL_AMOUNT --> revert.
      */
-    function sendSellRequest() external {
-        
+    function sendSellRequest(uint256 _tkAAPLAmountToSell) external returns(bytes32) {
+        // verifying user selling the amount which is > the minimum required amount 
+        uint256 amountToSellInUsdc = getUsdcValueInUsd(getAaplShareValueInUsd(_tkAAPLAmountToSell));
+        if (amountToSellInUsdc < MINIMUM_WITHDROWAL_AMOUNT) {
+            revert tkAAPL_WithdrawalAmountLowerMinimumAmount(amountToSellInUsdc);
+        }
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(sellSourceCode);
+        bytes32 requestId = _sendRequest(
+            req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
+            subscriptionId,
+            GAS_LIMIT,
+            DON_ID
+        );
+        requests[requestId] = AAPLRequest(
+            _tkAAPLAmountToSell,
+            msg.sender,
+            MintOrSell.sell
+        );
+        return requestId;
     }
 
     /**
-     * @dev Return an AAPL share price from Chainlink oracle.
+     * @dev Return an AAPL share price in USD from Chainlink price feed.
      */
     function getAaplSharePrice() public view returns(uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(SEPOLIA_PRICE_FEED);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(SEPOLIA_AAPL_PRICE_FEED);
         (,int256 price,,,) = priceFeed.latestRoundData();
-        return uint(price * 1e10);
+        return uint256(price * 1e10); // 1e10 - creates 18 decimals
+    }
+
+    /**
+     * @dev Return a USDC price in USD from Chainlink price feed.
+     */
+    function getUsdcPrice() public view returns(uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(SEPOLIA_USDC_PRICE_FEED);
+        (,int256 price,,,) = priceFeed.latestRoundData();
+        return uint256(price * 1e10); // 1e10 - creates 18 decimals
+    }
+
+    /**
+     * @notice This function we need because USDC price != directly to 1.00 USD
+     * It can change due to the supply/demand on the market. So with this function 
+     * we guarantee that user will receive the latest updated USDC value for withdraw.
+     * @dev Returns the USD value for the related USDC amount.
+     * @param _amountOfUsd  - amount of USD.
+     */
+    function getUsdcValueInUsd(uint256 _amountOfUsd) public view returns(uint256) {
+        return (getUsdcPrice() * _amountOfUsd) / DECIMALS;
+    }
+
+    /**
+     * @dev Returns the USD value for the related AAPL amount.
+     * @param _amountOfAapl - amount of AAPL shares.
+     */
+    function getAaplShareValueInUsd(uint256 _amountOfAapl) public view returns(uint256) {
+        return (getAaplSharePrice() * _amountOfAapl) / DECIMALS;
     }
 
     /**
@@ -147,7 +201,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @param _amountOfTokensToMint - requested amount of tokens, user want to mint.
      */
     function _getCollateralBalance(uint256 _amountOfTokensToMint) internal view returns(uint256) {
-        uint256 calculatedNewTotalValue = getCalculatedNewTotalValue(_amountOfTokensToMint);
+        uint256 calculatedNewTotalValue = _getCalculatedNewTotalValue(_amountOfTokensToMint);
         return(calculatedNewTotalValue * COLLATERAL_RATIO) / COLLATERAL_DECIMALS;
     }
 
@@ -158,7 +212,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * mint the requested amount of tokens. 
      * @param _addedTokens - tokens amount which is requested for mint. 
      */
-    function getCalculatedNewTotalValue(uint256 _addedTokens) internal view returns (uint256) {
+    function _getCalculatedNewTotalValue(uint256 _addedTokens) internal view returns (uint256) {
         // (10tokens + 5 tokens to mint) * AAPL share price(200) = 3000$
         return ((totalSupply() + _addedTokens) * getAaplSharePrice()) / DECIMALS;
     }

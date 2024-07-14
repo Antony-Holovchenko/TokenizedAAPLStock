@@ -16,4 +16,12 @@ interface tkAAPLErrors {
      * @param requestedAmountToMint - numder of tokens requested for minting.
     */
    error tkAAPL_Requested0TokenAmountToMint(uint256 requestedAmountToMint);
+
+   /** 
+     * @dev Error indicates that user requested the amount to withdraw which is
+     * less than the required minimum amount for withdrawing stated in the 
+     * 'MINIMUM_WITHDROWAL_AMOUNT' variable.
+     * @param amountToWithdraw - value of AAPL share in USD.
+    */
+   error tkAAPL_WithdrawalAmountLowerMinimumAmount(uint256 amountToWithdraw);
 }
