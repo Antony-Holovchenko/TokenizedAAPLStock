@@ -63,7 +63,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * 
      * @dev Send an HTTP request to Chainlink. Function will send 2 txs.
      * 1st tx will send a request to Chainlink node, to check the shares balance of the user.
-     * 2nd tx will do a callback to the APPL contract and do a token minting throght the '_mintFulfillRequest'  
+     * 2nd tx will do a callback to the tkAPPL contract and do a token minting throght the '_mintFulfillRequest'  
      * if user balance is enough for this.
      * 
      * @param _amount - number of tokens for minting. 
@@ -90,7 +90,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     /**
      * @notice 'msg.sender' send a request to sell tkAAPL tokens amount for 
-     * it's USDC equivalent value at the current point of time.
+     * it's USDC equivalent value at the current point of time(swap tkAAPL for USDC).
      * 
      * @dev Chainlink will send a call to the exchange app, and do the next operations:
      * 1. Sell AAPL share on the exchange.
@@ -130,7 +130,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     /**
-     * @notice 'msg,sender' requesting to withdraw his USDC tokens after selling the tkAAPL shares.
+     * @notice 'msg.sender' requesting to withdraw his USDC tokens after selling the tkAAPL shares.
      * 
      * @dev Transfer USDC 'withdrawAmount' to 'msg.sender'.
      */
@@ -183,7 +183,27 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         return (getAaplSharePrice() * _amountOfAapl) / DECIMALS;
     }
 
-    /**
+    function getRequest(bytes32 _requestId) public view returns(AAPLRequest memory) {
+        return requests[_requestId];
+    }
+
+    function getPortfolioBalance() public view returns(uint256) {
+        return portfolioBalance;
+    }
+
+    function getSubscriptionId() public view returns(uint64) {
+        return subscriptionId;
+    }
+
+    function getMintSourceCode() public view returns(string memory) {
+        return requestSourceCode;
+    }
+
+    function getSellSourceCode() public view returns(string memory) {
+        return sellSourceCode;
+    }
+
+     /**
      * @notice Return the amount of AAPL value(in USD) stored on the user exchange account.
      * If user have enough AAPL shares, then we'll mint a tkAAPL token.
      * 
@@ -198,8 +218,8 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         AAPLRequest memory request = requests[_requestId];
         portfolioBalance = uint256(bytes32(_response));
 
-        // Total amount of tokens to mint should be < portfolioBalance.
-        // checking if user have enough AAPL shares on the exchange account to mint new tokens.
+        // Total amount of produced tokens + requested amount of tokens to mint should be < portfolioBalance.
+        // Checking if user have enough AAPL shares on the exchange account to mint new tokens.
         if(_getCollateralBalance(request.requestedTokenAmount) > portfolioBalance) {
             revert tkAAPL_NotEnoughCollateral(request.requestedTokenAmount, portfolioBalance);
         } else {
@@ -210,6 +230,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     function _sellFulfillRequest(bytes32 _requestId, bytes memory _response) internal {
         uint256 usdcAmount = uint256(bytes32(_response));
         AAPLRequest memory req = requests[_requestId];
+        // checking if user receive nothing, then we doing a refund.
         if (usdcAmount == 0) {
             _mint(msg.sender, req.requestedTokenAmount);
         }
