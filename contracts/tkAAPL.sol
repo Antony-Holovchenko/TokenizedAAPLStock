@@ -35,6 +35,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     uint32 constant GAS_LIMIT = 300000;
     address constant SEPOLIA_AAPL_PRICE_FEED = 0xc59E3633BAAC79493d908e63626716e204A45EdF; // it is a LINK/USD frice feed for a test purpose
     address constant SEPOLIA_USDC_PRICE_FEED = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
+    address constant SEPOLIA_USDC = 0xC43cc2005484349AAd5553951E7208a720513e00; // address of my contract with test USDC logic
     // Exchanges has a minimum withdrawal amount. I set it to 100
     // because this amount will cover min. withdr. amount on each exchange. 
     uint256 constant MINIMUM_WITHDROWAL_AMOUNT = 100e18;
@@ -58,13 +59,12 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     /**
-     * @notice User send a request for minting an tkAAPL token.
+     * @notice 'msg.sender' send a request for minting an tkAAPL token.
      * 
      * @dev Send an HTTP request to Chainlink. Function will send 2 txs.
      * 1st tx will send a request to Chainlink node, to check the shares balance of the user.
-     * 2nd tx will do a callback to the APPL contract and do a token minting throght the "_mintFulfillRequest"  
+     * 2nd tx will do a callback to the APPL contract and do a token minting throght the '_mintFulfillRequest'  
      * if user balance is enough for this.
-     * If '_amount' <= 0 --> revert with 'tkAAPL_Requested0TokenAmountToMint()'
      * 
      * @param _amount - number of tokens for minting. 
      */
@@ -96,7 +96,6 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * 1. Sell AAPL share on the exchange.
      * 2. Buy USDC on the exchange.
      * 4. Send USDC to this smart contract.
-     * If  '_tkAAPLAmountToSell' < 'MINIMUM_WITHDROWAL_AMOUNT' --> revert.
      */
     function sendSellRequest(uint256 _tkAAPLAmountToSell) external {
         // verifying user selling the amount which is > the minimum required amount 
@@ -128,6 +127,20 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         );
         // burn the tkAAPL tokens after selling them.
         _burn(msg.sender, _tkAAPLAmountToSell);
+    }
+
+    /**
+     * @notice 'msg,sender' requesting to withdraw his USDC tokens after selling the tkAAPL shares.
+     * 
+     * @dev Transfer USDC 'withdrawAmount' to 'msg.sender'.
+     */
+    function withdraw() external {
+        uint256 withdrawAmount = amountToWithdraw[msg.sender];
+        amountToWithdraw[msg.sender] = 0;
+        bool success = ERC20(SEPOLIA_USDC).transfer(msg.sender, withdrawAmount);
+        if (!success) {
+         revert tkAAPL_usdcTransferFailed(withdrawAmount);   
+        }
     }
 
     /**

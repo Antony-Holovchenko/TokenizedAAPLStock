@@ -24,4 +24,11 @@ interface tkAAPLErrors {
      * @param amountToWithdraw - value of AAPL share in USD.
     */
    error tkAAPL_WithdrawalAmountLowerMinimumAmount(uint256 amountToWithdraw);
+
+   /**
+    * @dev Error indicates that transfer of USDC tokens during withdrawal failed.
+    * 
+    * @param withdrawAmonut - amount of USDC for withdrawal from 'amountToWithdraw' mapping.
+    */
+   error tkAAPL_usdcTransferFailed(uint256 withdrawAmonut);
 }
