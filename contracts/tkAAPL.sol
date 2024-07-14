@@ -46,6 +46,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     // Mapping storing each request details for each specific request id
     mapping(bytes32 requestId => AAPLRequest request) private requests;
+    mapping(address user => uint256 availableWithdrawAmount) private amountToWithdraw;
 
     constructor(string memory _requestSourceCode, string memory _sellSourceCode, uint64 _subscriptionID) 
         ConfirmedOwner(msg.sender) 
@@ -59,11 +60,13 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     /**
      * @notice User send a request for minting an tkAAPL token.
+     * 
      * @dev Send an HTTP request to Chainlink. Function will send 2 txs.
      * 1st tx will send a request to Chainlink node, to check the shares balance of the user.
      * 2nd tx will do a callback to the APPL contract and do a token minting throght the "_mintFulfillRequest"  
      * if user balance is enough for this.
      * If '_amount' <= 0 --> revert with 'tkAAPL_Requested0TokenAmountToMint()'
+     * 
      * @param _amount - number of tokens for minting. 
      */
     function sendMintRequest(uint256 _amount) external onlyOwner returns(bytes32) {
@@ -89,11 +92,12 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     /**
      * @notice 'msg.sender' send a request to sell tkAAPL tokens amount for 
      * it's USDC equivalent value at the current point of time.
+     * 
      * @dev Chainlink will send a call to the exchange app, and do the next operations:
      * 1. Sell AAPL share on the exchange.
      * 2. Buy USDC on the exchange.
      * 4. Send USDC to this smart contract.
-     * If  '_tkAAPLAmountToSell' < MINIMUM_WITHDROWAL_AMOUNT --> revert.
+     * If  '_tkAAPLAmountToSell' < 'MINIMUM_WITHDROWAL_AMOUNT' --> revert.
      */
     function sendSellRequest(uint256 _tkAAPLAmountToSell) external {
         // verifying user selling the amount which is > the minimum required amount 
@@ -149,7 +153,9 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @notice This function we need because USDC price != directly to 1.00 USD
      * It can change due to the supply/demand on the market. So with this function 
      * we guarantee that user will receive the latest updated USDC value for withdraw.
+     * 
      * @dev Returns the USD value for the related USDC amount.
+     * 
      * @param _amountOfUsd  - amount of USD.
      */
     function getUsdcValueInUsd(uint256 _amountOfUsd) public view returns(uint256) {
@@ -158,6 +164,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     /**
      * @dev Returns the USD value for the related AAPL amount.
+     * 
      * @param _amountOfAapl - amount of AAPL shares.
      */
     function getAaplShareValueInUsd(uint256 _amountOfAapl) public view returns(uint256) {
@@ -167,9 +174,11 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     /**
      * @notice Return the amount of AAPL value(in USD) stored on the user exchange account.
      * If user have enough AAPL shares, then we'll mint a tkAAPL token.
-     * @dev After calling "sendMintRequest" function, the Chainlink node will return a response
+     * 
+     * @dev After calling 'sendMintRequest' function, the Chainlink node will return a response
      * with user exchange account balance, which will be used in this function.
-     * If AAPL balance > txAAPL we want to mint --> then mint.
+     * If AAPL balance > tkAAPL we want to mint --> then mint.
+     * 
      * @param _requestId - id of the request to Chainlink.
      * @param _response - response object from Chainlink with data.
      */
@@ -187,12 +196,18 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     function _sellFulfillRequest(bytes32 _requestId, bytes memory _response) internal {
-
+        uint256 usdcAmount = uint256(bytes32(_response));
+        AAPLRequest memory req = requests[_requestId];
+        if (usdcAmount == 0) {
+            _mint(msg.sender, req.requestedTokenAmount);
+        }
+        amountToWithdraw[req.requester] += usdcAmount;
     }
 
     /**
      * @dev After sending a mint/sell request, Chainlink will always 
      * respond with a callback to the fullFillRequest func.
+     * 
      * @param _requestId - request id 
      * @param _response - response 
      */
@@ -210,6 +225,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     /**
      * @dev Checks that user have enough AAPL shares on his exchange account, 
      * before starting minting a requested amount of tkAAPL tokens.
+     * 
      * @param _amountOfTokensToMint - requested amount of tokens, user want to mint.
      */
     function _getCollateralBalance(uint256 _amountOfTokensToMint) internal view returns(uint256) {
@@ -222,10 +238,10 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * together with the requested amount of tokens for mint and price of the AAPL share.
      * At least this newly calculated total value should be on the user exchange account to
      * mint the requested amount of tokens. 
+     * 
      * @param _addedTokens - tokens amount which is requested for mint. 
      */
     function _getCalculatedNewTotalValue(uint256 _addedTokens) internal view returns (uint256) {
-        // (10tokens + 5 tokens to mint) * AAPL share price(200) = 3000$
         return ((totalSupply() + _addedTokens) * getAaplSharePrice()) / DECIMALS;
     }
 }
