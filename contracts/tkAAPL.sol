@@ -6,12 +6,14 @@ import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/Fu
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 import {tkAAPLErrors} from "../contracts/interfaces/CustomErrors.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
 
     using FunctionsRequest for FunctionsRequest.Request;
-    
+    using Strings for uint256;
+
     enum MintOrSell {
         mint,
         sell
@@ -85,22 +87,31 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     /**
-     * @notice User send a request to sell tkAAPL token for it's USDC equivalent price 
-     * at the current point of time.
+     * @notice 'msg.sender' send a request to sell tkAAPL tokens amount for 
+     * it's USDC equivalent value at the current point of time.
      * @dev Chainlink will send a call to the exchange app, and do the next operations:
      * 1. Sell AAPL share on the exchange.
      * 2. Buy USDC on the exchange.
      * 4. Send USDC to this smart contract.
      * If  '_tkAAPLAmountToSell' < MINIMUM_WITHDROWAL_AMOUNT --> revert.
      */
-    function sendSellRequest(uint256 _tkAAPLAmountToSell) external returns(bytes32) {
+    function sendSellRequest(uint256 _tkAAPLAmountToSell) external {
         // verifying user selling the amount which is > the minimum required amount 
         uint256 amountToSellInUsdc = getUsdcValueInUsd(getAaplShareValueInUsd(_tkAAPLAmountToSell));
         if (amountToSellInUsdc < MINIMUM_WITHDROWAL_AMOUNT) {
             revert tkAAPL_WithdrawalAmountLowerMinimumAmount(amountToSellInUsdc);
         }
+        // preparing request
         FunctionsRequest.Request memory req;
         req.initializeRequestForInlineJavaScript(sellSourceCode);
+        // Set up args for our request.
+        // args[0] - amount of tokens to sell.
+        // args[1] - amount of USDC send to this contract after selling tokens.
+        string[] memory args = new string[](2); 
+        args[0] = _tkAAPLAmountToSell.toString();
+        args[1] = amountToSellInUsdc.toString();
+        req.setArgs(args);
+        //sending request
         bytes32 requestId = _sendRequest(
             req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
             subscriptionId,
@@ -112,7 +123,8 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
             msg.sender,
             MintOrSell.sell
         );
-        return requestId;
+        // burn the tkAAPL tokens after selling them.
+        _burn(msg.sender, _tkAAPLAmountToSell);
     }
 
     /**
