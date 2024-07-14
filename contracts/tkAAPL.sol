@@ -10,7 +10,6 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
-
     using FunctionsRequest for FunctionsRequest.Request;
     using Strings for uint256;
 
