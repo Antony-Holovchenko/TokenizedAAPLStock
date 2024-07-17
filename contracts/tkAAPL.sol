@@ -28,8 +28,8 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     address constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
     bytes32 constant DON_ID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
     uint256 constant DECIMALS = 1e18;
-    // Tokens tkAAPL are not backed 1:1. Instead 1 tkAAPL token
-    // has at least 2 shares on the exchange account. So 2:1.
+    // Tokens tkAAPL are not backed 1:1, they are backed 1:2 
+    // Instead 1 tkAAPL token has at least 2 shares on the exchange account.
     uint256 constant COLLATERAL_RATIO = 200;
     uint256 constant COLLATERAL_DECIMALS = 100;
     uint32 constant GAS_LIMIT = 300000;
@@ -59,7 +59,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     }
 
     /**
-     * @notice 'msg.sender' send a request for minting an tkAAPL token.
+     * @notice 'msg.sender' send a request for minting a tkAAPL token.
      * 
      * @dev Send an HTTP request to Chainlink. Function will send 2 txs.
      * 1st tx will send a request to Chainlink node, to check the shares balance of the user.
@@ -183,22 +183,39 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         return (getAaplSharePrice() * _amountOfAapl) / DECIMALS;
     }
 
+    /**
+     * @dev Returns the 'AAPLRequest' strunct from 'requests' mapping.
+     * 
+     * @param _requestId - id of the request to Chainlink.
+     */
     function getRequest(bytes32 _requestId) public view returns(AAPLRequest memory) {
         return requests[_requestId];
     }
 
+    /**
+     * @dev Returns a 'portfolioBalance' value.
+     */
     function getPortfolioBalance() public view returns(uint256) {
         return portfolioBalance;
     }
 
+    /**
+     * @dev Returns the subscription id from Chainlink.
+     */
     function getSubscriptionId() public view returns(uint64) {
         return subscriptionId;
     }
 
+    /**
+     * Return the source code for mint request.
+     */
     function getMintSourceCode() public view returns(string memory) {
         return requestSourceCode;
     }
 
+    /**
+     * Return the source code for sell request.
+     */
     function getSellSourceCode() public view returns(string memory) {
         return sellSourceCode;
     }
@@ -209,7 +226,7 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * 
      * @dev After calling 'sendMintRequest' function, the Chainlink node will return a response
      * with user exchange account balance, which will be used in this function.
-     * If AAPL balance > tkAAPL we want to mint --> then mint.
+     * If AAPL balance > total supply of the rokens + tkAAPL we want to mint --> then mint.
      * 
      * @param _requestId - id of the request to Chainlink.
      * @param _response - response object from Chainlink with data.
