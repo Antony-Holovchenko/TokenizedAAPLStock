@@ -3,13 +3,14 @@ const fs = require("fs")
 const { Location, ReturnType, CodeLanguage } = require("@chainlink/functions-toolkit")
 
 const requestConfig = {
-    source: fs.readFileSync("./functions/sources/alpaca-balance.js"),
+    source: fs.readFileSync("./functions/sources/alpaca-balance-request.js").toString(),
     codeLocation: Location.Inline, // location of our request code
     secrets: {
-        alpacaKey: process.env.ALPACA_API_KEY, 
-        alpacaSecret: process.env.ALPACA_SECRET_KEY
+        alpacaKey: process.env.ALPACA_API_KEY ?? "", 
+        alpacaSecret: process.env.ALPACA_SECRET_KEY ?? ""
     },
     secretsLocation: Location.DONHosted, // secrets will be uploaded to a DON
+    args: [],
     codeLanguage: CodeLanguage.JavaScript,
     expectedReturnType: ReturnType.uint256
 }

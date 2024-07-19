@@ -7,7 +7,8 @@
     "hc": "hardhat compile",
     "hd": "hardhat deploy",
     "hds": "hardhat deploy --network sepolia",
-    "ht": "hardhat test"
+    "ht": "hardhat test",
+    "simulate": "source .env && node ./functions/simulators/alpaca-mint-simulation.js"
   },
   "author": "Anton",
   "license": "ISC",

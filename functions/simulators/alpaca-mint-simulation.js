@@ -1,5 +1,5 @@
 const { simulateScript, decodeResult } = require("@chainlink/functions-toolkit")
-const { requestConfig } = require("./functions/configs/alpaca-mint-config.sol")
+const { requestConfig } = require("../configs/alpaca-mint-config.js")
 
 async function simulate() {
     /*
@@ -12,7 +12,8 @@ async function simulate() {
     simulateScript(requestConfig)
     if (responseBytesHexstring) {
         console.log(`Response returned from request: ${decodeResult( //decoding hex strings into human readable values
-            responseBytesHexstring, requestConfig.expectedReturnType
+            responseBytesHexstring, 
+            requestConfig.expectedReturnType
         )}\n`)
     }
     if (errorString) {
