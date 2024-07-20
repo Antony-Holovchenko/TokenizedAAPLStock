@@ -7,7 +7,9 @@
     "hc": "hardhat compile",
     "hd": "hardhat deploy",
     "hds": "hardhat deploy --network sepolia",
-    "ht": "hardhat test"
+    "ht": "hardhat test",
+    "simulate": "source .env && node ./functions/simulators/alpaca-mint-simulation.js",
+    "upload-secrets": "source .env && node ./functions/secrets-upload/secrets-upload.js"
   },
   "author": "Anton",
   "license": "ISC",
@@ -24,13 +26,14 @@
     "@typechain/hardhat": "^9.1.0",
     "@types/chai": "^4.3.16",
     "@types/mocha": "^10.0.7",
-    "ethers": "^6.13.1",
+    "ethers": "^5.7.2",
     "hardhat": "^2.22.6",
     "hardhat-gas-reporter": "^1.0.10",
     "solidity-coverage": "^0.8.12"
   },
   "dependencies": {
     "@chainlink/contracts": "^1.1.1",
+    "@chainlink/functions-toolkit": "^0.2.8",
     "@openzeppelin/contracts": "^5.0.2",
     "dotenv": "^16.4.5"
   }

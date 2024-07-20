@@ -8,8 +8,8 @@ module.exports = {
       chainId: 31337
     },
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL,
-      accounts: [process.env.PRIVATE_KEY],
+      url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
+      accounts: [],
       chainId: 11155111,
       blockConfirmations: 6
     },
