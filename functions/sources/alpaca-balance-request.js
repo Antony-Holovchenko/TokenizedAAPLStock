@@ -9,7 +9,7 @@ if (secrets.alpacaKey == "" || secrets.alpacaSecret === "") {
 const request = Functions.makeHttpRequest({
     url: "https://paper-api.alpaca.markets/v2/account",
     headers: {
-        accept: application/json,
+        "Content-Type": "application/json",
         'APCA-API-KEY-ID': secrets.alpacaKey,
         'APCA-API-SECRET-KEY': secrets.alpacaSecret
     }

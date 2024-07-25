@@ -19,7 +19,7 @@ async function simulate() {
     if (errorString) {
         console.log(`Request return an error: ${errorString}\n`)
     }
-}
+} 
 
 simulate().catch((error) => {
     console.error(error)
