@@ -43,6 +43,8 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     string private requestSourceCode;
     string private sellSourceCode;
     uint256 private portfolioBalance;
+    uint8 donHostedSecretsSlotID = 1;
+    uint64 donHostedSecretsVersion = 1722012508;
 
     // Mapping storing each request details for each specific request id
     mapping(bytes32 requestId => AAPLRequest request) private requests;
@@ -74,6 +76,12 @@ contract tkAPPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         }
         FunctionsRequest.Request memory req; // this is our data object
         req.initializeRequestForInlineJavaScript(requestSourceCode);
+        if (donHostedSecretsVersion > 0){
+            req.addDONHostedSecrets(
+                donHostedSecretsSlotID,
+                donHostedSecretsVersion
+            );
+        }
         bytes32 requestId = _sendRequest( //sends a Chainlink Functions request to the stored router address
             req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
             subscriptionId,
