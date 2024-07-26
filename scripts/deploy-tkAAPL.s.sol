@@ -11,7 +11,11 @@ contract DeploytkAAPL is Script {
 
     function run() external {
         vm.startBroadcast();
-        //deployTkAAPL();
+        deployTkAAPL();
         vm.stopBroadcast();
+    }
+
+    function deployTkAAPL() public returns(tkAAPL) {
+        
     }
 }
