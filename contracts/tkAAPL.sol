@@ -77,10 +77,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         FunctionsRequest.Request memory req; // this is our data object
         req.initializeRequestForInlineJavaScript(requestSourceCode);
         if (donHostedSecretsVersion > 0){
-            req.addDONHostedSecrets(
-                donHostedSecretsSlotID,
-                donHostedSecretsVersion
-            );
+            req.addDONHostedSecrets(donHostedSecretsSlotID,donHostedSecretsVersion);
         }
         bytes32 requestId = _sendRequest( //sends a Chainlink Functions request to the stored router address
             req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
