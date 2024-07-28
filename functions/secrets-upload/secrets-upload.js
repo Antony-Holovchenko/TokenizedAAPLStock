@@ -12,9 +12,7 @@ async function uploadSecrets() {
     }
     // Initialize a provider and signer instances.
     const provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`)
-    const encryptedPK = fs.readFileSync("./encryption/encryptedPk.json", "utf-8")
-    const wallet = ethers.Wallet.fromEncryptedJsonSync(encryptedPK, process.env.PRIVATE_KEY_PASSWORD)
-    const signer = wallet.connect(provider)
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
 
     // Initialize config for SecretsManager object
     const functionsRouterAddress = process.env.SEPOLIA_FUNCTIONS_ROUTER

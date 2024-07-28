@@ -1,7 +1,7 @@
-const ethers = require("ethers")
+/* const ethers = require("ethers")
 const fs = require("fs")
 require("dotenv").config()
-
+ */
 /* 
  1. To use this script you need to have 'PRIVATE_KEY' 
     and 'PRIVATE_KEY_PASSWORD' values in .env file.
@@ -10,7 +10,7 @@ require("dotenv").config()
  3.Don't forget to add '.env' and 'encryptedPK.json' 
    files to '.gitignore' file.
 */
-async function encrypt() {
+/* async function encrypt() {
     if(!process.env.PRIVATE_KEY || !process.env.PRIVATE_KEY_PASSWORD){
         console.log("Can't start encryption, required pk or pk-password is missing.")
     }
@@ -25,4 +25,4 @@ async function encrypt() {
 encrypt().catch((error) => {
     console.log(error)
     process.exit.code = 1
-})
+}) */
