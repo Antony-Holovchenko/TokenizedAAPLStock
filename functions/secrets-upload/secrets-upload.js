@@ -2,6 +2,8 @@ const ethers = require("ethers");
 const fs = require("fs")
 const { SecretsManager } = require("@chainlink/functions-toolkit")
 require('dotenv').config()
+const { config } = require('@chainlink/env-enc');
+config()
 
 
 async function uploadSecrets() {

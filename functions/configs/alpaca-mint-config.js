@@ -1,7 +1,8 @@
 // This config is used to run a simulator script.
 const fs = require("fs")
 const { Location, ReturnType, CodeLanguage } = require("@chainlink/functions-toolkit")
-require('dotenv').config()
+const { config } = require('@chainlink/env-enc');
+config()
 
 const requestConfig = {
     source: fs.readFileSync("./functions/sources/alpaca-balance-request.js").toString(),
