@@ -8,7 +8,7 @@
     "hd": "hardhat deploy",
     "hds": "hardhat deploy --network sepolia",
     "ht": "hardhat test",
-    "simulate": "source .env && node ./functions/simulators/alpaca-mint-simulation.js",
+    "simulate-mint": "source .env && node ./functions/simulators/alpaca-mint-simulation.js",
     "upload-secrets": "source .env && node ./functions/secrets-upload/secrets-upload.js"
   },
   "author": "Anton",
