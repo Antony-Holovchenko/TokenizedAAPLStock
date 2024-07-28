@@ -2,20 +2,17 @@
 pragma solidity 0.8.26;
 import { tkAAPL } from "../contracts/tkAAPL.sol";
 
-contract DeploytkAAPL {
-
-    string constant mintSourceCodePath = "./functions/sources/alpaca-balance-request.js";
-    string constant sellSourceCodePath = "";
+contract deployTKAAPL {
+    string private mintSourceCode = "";
+    string private sellSourceCode = "";
     uint64 constant subId = 3263;
 
+    constructor(string memory _mintSourceCode, string memory _sellSourceCode) {
+        mintSourceCode = _mintSourceCode;
+        sellSourceCode = _sellSourceCode;
+    }
     function run() external {
-        /* string memory mintSourceCode = vm.readFile(mintSourceCodePath);
-        string memory sellSourceCode = vm.readFile(sellSourceCodePath);
-
-        // vm.startBroadcast and vm.stopBroadcast are used to simulate tx execution.
-        vm.startBroadcast();
         deployTkAAPL(mintSourceCode, sellSourceCode, subId);
-        vm.stopBroadcast(); */
     }
 
     function deployTkAAPL(
