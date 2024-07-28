@@ -1,5 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config()
+require("@chainlink/env-enc").config();
+config()
 
 module.exports = {
   defaultNetwork: "hardhat",
@@ -14,7 +16,7 @@ module.exports = {
       blockConfirmations: 6
     },
     tenderly: {
-      url: process.env.TENDERLY_VM,
+      url: `https://virtual.mainnet.rpc.tenderly.co/${process.env.TENDERLY_API_KEY}`,
       chainId: 7295
     }
   },
