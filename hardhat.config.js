@@ -1,7 +1,8 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("hardhat-deploy")
 require("dotenv").config()
 require("@chainlink/env-enc").config();
-config()
+require("@nomicfoundation/hardhat-ethers")
 
 module.exports = {
   defaultNetwork: "hardhat",
@@ -19,6 +20,11 @@ module.exports = {
       url: `https://virtual.mainnet.rpc.tenderly.co/${process.env.TENDERLY_API_KEY}`,
       chainId: 7295
     }
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0
+    },
   },
   solidity: {
     compilers: [
