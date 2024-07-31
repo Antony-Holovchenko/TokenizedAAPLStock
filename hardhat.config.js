@@ -1,8 +1,8 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("hardhat-deploy")
-require("dotenv").config()
-require("@chainlink/env-enc").config();
 require("@nomicfoundation/hardhat-ethers")
+require("@nomicfoundation/hardhat-verify");
+require("hardhat-deploy")
+require("@chainlink/env-enc").config();
 
 module.exports = {
   defaultNetwork: "hardhat",
@@ -25,6 +25,11 @@ module.exports = {
     deployer: {
       default: 0
     },
+  },
+  etherscan: {
+    apiKey: {
+      sepolia: process.env.ETHERSCAN_API_KEY
+    }
   },
   solidity: {
     compilers: [
