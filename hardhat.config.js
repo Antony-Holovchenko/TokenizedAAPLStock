@@ -3,6 +3,11 @@ require("@nomicfoundation/hardhat-ethers")
 require("@nomicfoundation/hardhat-verify");
 require("hardhat-deploy")
 require("@chainlink/env-enc").config();
+const tdly = require("@tenderly/hardhat-tenderly");
+
+tdly.setup({
+  automaticVerifications: false
+});
 
 module.exports = {
   defaultNetwork: "hardhat",
@@ -16,10 +21,14 @@ module.exports = {
       chainId: 11155111,
       blockConfirmations: 6
     },
-    tenderly: {
-      url: `https://virtual.mainnet.rpc.tenderly.co/${process.env.TENDERLY_API_KEY}`,
-      chainId: 7295
+    virtual_sepolia: {
+      url: `https://virtual.sepolia.rpc.tenderly.co/${process.env.TENDERLY_SEPOLIA_API_KEY}`,
+      chainId: 446544
     }
+  },
+  tenderly: {
+    project: "rwa-aapl-stock",
+    username: "0xAg"
   },
   namedAccounts: {
     deployer: {
