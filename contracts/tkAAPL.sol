@@ -25,39 +25,61 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         MintOrSell mintOrSell;
     }
 
-    address constant FUNCTIONS_ROUTER = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
-    bytes32 constant DON_ID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
-    uint256 constant DECIMALS = 1e18;
+    address immutable functionsRouter;
+    bytes32 immutable donId ;
+    uint64 immutable subscriptionId;
+    
     // Tokens tkAAPL are not backed 1:1, they are backed 1:2 
     // Instead 1 tkAAPL token has at least 2 shares on the exchange account.
-    uint256 constant COLLATERAL_RATIO = 200;
-    uint256 constant COLLATERAL_DECIMALS = 100;
-    uint32 constant GAS_LIMIT = 300000;
-    address constant SEPOLIA_AAPL_PRICE_FEED = 0xc59E3633BAAC79493d908e63626716e204A45EdF; // it is a LINK/USD frice feed for a test purpose
-    address constant SEPOLIA_USDC_PRICE_FEED = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E;
-    address constant SEPOLIA_USDC = 0xC43cc2005484349AAd5553951E7208a720513e00; // address of my contract with test USDC logic
+    uint256 public constant COLLATERAL_RATIO = 200;
+    uint256  public constant COLLATERAL_DECIMALS = 100;
+    uint32  private constant GAS_LIMIT = 300000;
+    uint256 public constant DECIMALS = 1e18;
     // Exchanges has a minimum withdrawal amount. I set it to 100
     // because this amount will cover min. withdr. amount on each exchange. 
     uint256 constant MINIMUM_WITHDROWAL_AMOUNT = 100e18;
-    uint64 immutable subscriptionId;
+
+    address public immutable sepoliaAaplPriceFeed; // it is a LINK/USD frice feed for a test purpose
+    address public immutable sepoliaUsdcPriceFeed;
+    address public immutable sepoliaUsdc; // address of my contract with test USDC logic
+    
+
     string private requestSourceCode;
     string private sellSourceCode;
     uint256 private portfolioBalance;
-    uint8 donHostedSecretsSlotID = 1;
-    uint64 donHostedSecretsVersion = 1722012508;
+    uint8 donHostedSecretsSlotId;
+    uint64 donHostedSecretsVersion;
 
     // Mapping storing each request details for each specific request id
     mapping(bytes32 requestId => AAPLRequest request) private requests;
     mapping(address user => uint256 availableWithdrawAmount) private amountToWithdraw;
 
-    constructor(string memory _requestSourceCode, string memory _sellSourceCode, uint64 _subscriptionID) 
+    constructor(
+        address _functionsRouter,
+        bytes32 _donId,
+        uint64 _subscriptionId,
+        address _sepoliaAaplPriceFeed,
+        address _sepoliaUsdcPriceFeed,
+        address _sepoliaUsdc,
+        string memory _requestSourceCode, 
+        string memory _sellSourceCode, 
+        uint8 _donHostedSecretsSlotId,
+        uint64 _donHostedSecretsVersion
+    ) 
         ConfirmedOwner(msg.sender) 
-        FunctionsClient(FUNCTIONS_ROUTER)
+        FunctionsClient(_functionsRouter)
         ERC20("tkAAPl", "tkAAPL") 
     {
+        functionsRouter = _functionsRouter;
+        donId = _donId;
+        subscriptionId = _subscriptionId;
+        sepoliaAaplPriceFeed = _sepoliaAaplPriceFeed;
+        sepoliaUsdcPriceFeed = _sepoliaUsdcPriceFeed;
+        sepoliaUsdc = _sepoliaUsdc;
         requestSourceCode = _requestSourceCode;
         sellSourceCode = _sellSourceCode;
-        subscriptionId = _subscriptionID;
+        donHostedSecretsSlotId = _donHostedSecretsSlotId;
+        donHostedSecretsVersion = _donHostedSecretsVersion;
     }
 
     /**
@@ -77,13 +99,13 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         FunctionsRequest.Request memory req; // this is our data object
         req.initializeRequestForInlineJavaScript(requestSourceCode);
         if (donHostedSecretsVersion > 0){
-            req.addDONHostedSecrets(donHostedSecretsSlotID,donHostedSecretsVersion);
+            req.addDONHostedSecrets(donHostedSecretsSlotId,donHostedSecretsVersion);
         }
         bytes32 requestId = _sendRequest( //sends a Chainlink Functions request to the stored router address
             req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
             subscriptionId,
             GAS_LIMIT,
-            DON_ID
+            donId
         );
         requests[requestId] = AAPLRequest(
             _amount,
@@ -123,7 +145,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
             req.encodeCBOR(), // "encodeCBOR()" function encodes data into CBOR encoded bytes, so that Chainlink node will understand our data
             subscriptionId,
             GAS_LIMIT,
-            DON_ID
+            donId
         );
         requests[requestId] = AAPLRequest(
             _tkAAPLAmountToSell,
@@ -142,7 +164,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     function withdraw() external {
         uint256 withdrawAmount = amountToWithdraw[msg.sender];
         amountToWithdraw[msg.sender] = 0;
-        bool success = ERC20(SEPOLIA_USDC).transfer(msg.sender, withdrawAmount);
+        bool success = ERC20(sepoliaUsdc).transfer(msg.sender, withdrawAmount);
         if (!success) {
          revert tkAAPL_usdcTransferFailed(withdrawAmount);   
         }
@@ -152,7 +174,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @dev Return an AAPL share price in USD from Chainlink price feed.
      */
     function getAaplSharePrice() public view returns(uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(SEPOLIA_AAPL_PRICE_FEED);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(sepoliaAaplPriceFeed);
         (,int256 price,,,) = priceFeed.latestRoundData();
         return uint256(price * 1e10); // 1e10 - creates 18 decimals
     }
@@ -161,7 +183,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @dev Return a USDC price in USD from Chainlink price feed.
      */
     function getUsdcPrice() public view returns(uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(SEPOLIA_USDC_PRICE_FEED);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(sepoliaUsdcPriceFeed);
         (,int256 price,,,) = priceFeed.latestRoundData();
         return uint256(price * 1e10); // 1e10 - creates 18 decimals
     }
