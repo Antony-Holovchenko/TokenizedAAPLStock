@@ -1,5 +1,6 @@
 const { run } = require("hardhat")
 
+// Function for automatic contract verification after deployment to testnet/mainnet.
 const verify = async(contractAddress, contractArguments) => {
     try {
         console.log(`========= Starting verification... =========\n`)
@@ -16,6 +17,15 @@ const verify = async(contractAddress, contractArguments) => {
     }
 }
 
+// Function for automatic contract verification after deployment to tenderly virtual network.
+const tenderlyVerify = async(contractName, contractAddress) => {
+    await tenderly.verify({
+        name: contractName,
+        address: contractAddress
+    })
+}
+
 module.exports = {
-    verify
+    verify,
+    tenderlyVerify
 }
