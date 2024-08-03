@@ -39,9 +39,9 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     // because this amount will cover min. withdr. amount on each exchange. 
     uint256 constant MINIMUM_WITHDROWAL_AMOUNT = 100e18;
 
-    address public immutable sepoliaAaplPriceFeed; // it is a LINK/USD frice feed for a test purpose
-    address public immutable sepoliaUsdcPriceFeed;
-    address public immutable sepoliaUsdc; // address of my contract with test USDC logic
+    address public immutable aaplPriceFeed; // it is a LINK/USD frice feed for a test purpose
+    address public immutable usdcPriceFeed;
+    address public immutable usdcContract; // address of my contract with test USDC logic
     
 
     string private requestSourceCode;
@@ -58,9 +58,9 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         address _functionsRouter,
         bytes32 _donId,
         uint64 _subscriptionId,
-        address _sepoliaAaplPriceFeed,
-        address _sepoliaUsdcPriceFeed,
-        address _sepoliaUsdc,
+        address _aaplPriceFeed,
+        address _usdcPriceFeed,
+        address _usdcContract,
         string memory _requestSourceCode, 
         string memory _sellSourceCode, 
         uint8 _donHostedSecretsSlotId,
@@ -73,9 +73,9 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
         functionsRouter = _functionsRouter;
         donId = _donId;
         subscriptionId = _subscriptionId;
-        sepoliaAaplPriceFeed = _sepoliaAaplPriceFeed;
-        sepoliaUsdcPriceFeed = _sepoliaUsdcPriceFeed;
-        sepoliaUsdc = _sepoliaUsdc;
+        aaplPriceFeed = _aaplPriceFeed;
+        usdcPriceFeed = _usdcPriceFeed;
+        usdcContract = _usdcContract;
         requestSourceCode = _requestSourceCode;
         sellSourceCode = _sellSourceCode;
         donHostedSecretsSlotId = _donHostedSecretsSlotId;
@@ -164,7 +164,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
     function withdraw() external {
         uint256 withdrawAmount = amountToWithdraw[msg.sender];
         amountToWithdraw[msg.sender] = 0;
-        bool success = ERC20(sepoliaUsdc).transfer(msg.sender, withdrawAmount);
+        bool success = ERC20(usdcContract).transfer(msg.sender, withdrawAmount);
         if (!success) {
          revert tkAAPL_usdcTransferFailed(withdrawAmount);   
         }
@@ -174,7 +174,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @dev Return an AAPL share price in USD from Chainlink price feed.
      */
     function getAaplSharePrice() public view returns(uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(sepoliaAaplPriceFeed);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(aaplPriceFeed);
         (,int256 price,,,) = priceFeed.latestRoundData();
         return uint256(price * 1e10); // 1e10 - creates 18 decimals
     }
@@ -183,7 +183,7 @@ contract tkAAPL is ConfirmedOwner, FunctionsClient, tkAAPLErrors, ERC20 {
      * @dev Return a USDC price in USD from Chainlink price feed.
      */
     function getUsdcPrice() public view returns(uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(sepoliaUsdcPriceFeed);
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(usdcPriceFeed);
         (,int256 price,,,) = priceFeed.latestRoundData();
         return uint256(price * 1e10); // 1e10 - creates 18 decimals
     }
